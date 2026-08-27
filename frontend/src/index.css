@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  /* A calm, utilitarian palette suited to a compliance/status dashboard:
+     deep slate-blue for structure, a single warm accent reserved for
+     primary actions, and clear semantic colors for status states. */
+  --color-ink: #1c2430;
+  --color-surface: #f7f8fa;
+  --color-panel: #ffffff;
+  --color-border: #e2e5ea;
+  --color-muted: #667085;
+  --color-accent: #3457d5;
+  --color-accent-hover: #2a45ad;
+  --color-satisfied: #16794f;
+  --color-satisfied-bg: #e7f6ee;
+  --color-outdated: #a15c00;
+  --color-outdated-bg: #fdf1dc;
+  --color-missing: #b3261e;
+  --color-missing-bg: #fceceb;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}

@@ -1,0 +1,136 @@
+name: CI
+
+# Runs on every push and PR to main, so problems are caught before merge.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend (lint, migration check, tests)
+    runs-on: ubuntu-latest
+
+    # Spin up a real Postgres for the job -- this lets us run the actual
+    # Alembic migration in CI, the same way it runs in Docker Compose,
+    # instead of trusting it blindly.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: student_env_platform
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Run Alembic migration against a real Postgres
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/student_env_platform
+        run: alembic upgrade head
+
+      - name: Import check (catches broken imports/syntax early)
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/student_env_platform
+        run: python -c "from app.main import app; print(f'{len(app.routes)} routes registered')"
+
+      - name: Run tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/student_env_platform
+        run: |
+          if [ -d tests ]; then
+            pip install pytest
+            pytest
+          else
+            echo "No tests/ directory yet -- skipping. Add backend/tests/ to enable this step."
+          fi
+
+  frontend:
+    name: Frontend (build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  student-agent:
+    name: Student Agent (import + unit tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: student-agent/requirements.txt
+
+      - name: Install dependencies
+        working-directory: student-agent
+        run: pip install -r requirements.txt
+
+      - name: Import check
+        working-directory: student-agent
+        run: python -c "import agent, detection, versioning, backend_client; print('All modules import cleanly')"
+
+      - name: Run versioning/detection unit tests
+        working-directory: student-agent
+        run: |
+          python -c "
+          from versioning import parse_version, meets_minimum
+          assert parse_version('3.11.4') == (3, 11, 4)
+          assert meets_minimum('3.11.4', '3.11.0') is True
+          assert meets_minimum('3.10.4', '3.11.0') is False
+          assert meets_minimum('abc', '3.11.0') is None
+          print('versioning.py: all checks passed')
+          "
+
+  docker-build:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build -t student-env-backend:ci ./backend
+
+      - name: Build frontend image
+        run: docker build -t student-env-frontend:ci ./frontend

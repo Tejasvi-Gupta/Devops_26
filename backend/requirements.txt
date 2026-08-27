@@ -1,0 +1,8 @@
+fastapi==0.115.6
+starlette==0.41.3
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+alembic
+pydantic[email]
+python-dotenv
