@@ -134,3 +134,40 @@ jobs:
 
       - name: Build frontend image
         run: docker build -t student-env-frontend:ci ./frontend
+
+      - name: Scan backend image with Trivy
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: student-env-backend:ci
+          format: table
+          exit-code: "0" # Report only for now; flip to "1" once the team
+                          # has triaged existing findings and wants scans
+                          # to actually block merges.
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true # skip CVEs with no available patch yet --
+                                # nothing actionable to do about those today
+
+      - name: Scan frontend image with Trivy
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: student-env-frontend:ci
+          format: table
+          exit-code: "0"
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+  security-scan:
+    name: Security scan (Trivy filesystem)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Trivy filesystem scan (dependency vulnerabilities)
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          exit-code: "0"
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
