@@ -194,16 +194,6 @@ jobs:
       - name: Install Snyk CLI
         run: npm install -g snyk
 
-      - name: Verify SNYK_TOKEN is set (without exposing it)
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: |
-          if [ -z "$SNYK_TOKEN" ]; then
-            echo "SNYK_TOKEN is EMPTY or not set"
-          else
-            echo "SNYK_TOKEN is set, length: ${#SNYK_TOKEN} characters"
-          fi
-
       - name: Run Snyk to check backend Python dependencies
         continue-on-error: true # report findings without blocking the
                                  # pipeline, same policy as Trivy above --
