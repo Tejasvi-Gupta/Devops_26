@@ -171,3 +171,48 @@ jobs:
           exit-code: "0"
           severity: CRITICAL,HIGH
           ignore-unfixed: true
+
+  snyk-backend:
+    name: Snyk (backend dependencies)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Run Snyk to check backend Python dependencies
+        continue-on-error: true # report findings without blocking the
+                                 # pipeline, same policy as Trivy above --
+                                 # revisit once findings are triaged
+        uses: snyk/actions/python@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          args: --file=backend/requirements.txt --severity-threshold=high
+
+  snyk-frontend:
+    name: Snyk (frontend dependencies)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Run Snyk to check frontend npm dependencies
+        continue-on-error: true
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          args: --file=frontend/package.json --severity-threshold=high
+
+  sonarcloud:
+    name: SonarCloud (code quality analysis)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # full history improves analysis relevancy
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
