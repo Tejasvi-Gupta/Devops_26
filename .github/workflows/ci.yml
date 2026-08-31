@@ -178,16 +178,30 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        # Snyk's Python plugin resolves the real dependency tree, which
+        # means it needs the packages actually installed first -- pointing
+        # it at requirements.txt alone fails with SNYK-OS-PYTHON-0013
+        # ("Missing required packages").
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
       - name: Run Snyk to check backend Python dependencies
         continue-on-error: true # report findings without blocking the
                                  # pipeline, same policy as Trivy above --
                                  # revisit once findings are triaged
-        uses: snyk/actions/python@master
+        working-directory: backend
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: test
-          args: --file=backend/requirements.txt --severity-threshold=high
+        run: snyk test --command=python3 --severity-threshold=high
 
   snyk-frontend:
     name: Snyk (frontend dependencies)
@@ -195,14 +209,24 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Snyk CLI
+        run: npm install -g snyk
+
       - name: Run Snyk to check frontend npm dependencies
         continue-on-error: true
-        uses: snyk/actions/node@master
+        working-directory: frontend
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: test
-          args: --file=frontend/package.json --severity-threshold=high
+        run: snyk test --severity-threshold=high
 
   sonarcloud:
     name: SonarCloud (code quality analysis)
