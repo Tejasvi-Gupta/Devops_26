@@ -81,11 +81,37 @@ you can try every endpoint directly from the browser.
 
 ### A note on `requirements.txt` versions
 
-`fastapi` and `starlette` are pinned to `0.115.6` / `0.41.3`. This isn't
-arbitrary — during testing, letting pip resolve to the latest `fastapi`
-pulled in a `starlette` release that silently broke route registration
-(`include_router` added no routes, no error). If you ever bump these
-versions, re-run the end-to-end test below before trusting the result.
+`fastapi` and `starlette` are pinned to `0.135.0` / `1.2.1`. This isn't
+arbitrary:
+
+- The original pin (`0.115.6` / `0.41.3`) was chosen because letting pip
+  resolve to the latest `fastapi` at the time pulled in a `starlette`
+  release that silently broke route registration (`include_router` added
+  no routes, no error).
+- That original `starlette==0.41.3` was later flagged by Snyk with 4
+  high-severity CVEs (ReDoS, SSRF, resource exhaustion, name resolution) —
+  all fixed in Starlette 1.0+.
+- Jumping straight to the latest `fastapi` (`0.141.1` at the time) to get
+  Starlette 1.x reproduced the *exact same* silent route-registration bug
+  as before (with `starlette==1.6.0`) — this is a real, reproducible
+  incompatibility between that specific pairing, not a fluke.
+- `fastapi==0.135.0` / `starlette==1.2.1` was found by testing several
+  versions between the two known-bad points, and is confirmed working:
+  correct route count, and a full instructor → environment → student →
+  enrollment → check-run → status/compliance flow all verified via real
+  HTTP calls against Postgres. It's also past Starlette's 1.0 boundary,
+  so the CVEs Snyk flagged no longer apply.
+
+**If you ever bump these versions again**, don't just trust that it
+installs — re-run the check below (route count) and the end-to-end smoke
+test further down before trusting the result. This specific dependency
+pairing has broken silently twice already.
+
+```
+python -c "from app.main import app; print(f'{len(app.routes)} routes registered')"
+```
+Should print `21` (or more, if new endpoints have been added since). If it
+prints something close to `5`, routing is broken the same way it was before.
 
 ### Quick end-to-end smoke test
 
