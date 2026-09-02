@@ -1,4 +1,8 @@
-export default function Shell({ view, onChangeView, children }) {
+import { useAuth } from "../auth/AuthContext";
+
+export default function Shell({ children }) {
+  const { user, logout } = useAuth();
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-[var(--color-border)] bg-[var(--color-panel)]">
@@ -11,28 +15,22 @@ export default function Shell({ view, onChangeView, children }) {
               Environment provisioning &amp; compliance tracking
             </p>
           </div>
-          <nav className="flex gap-1 rounded-lg bg-[var(--color-surface)] p-1">
-            <button
-              onClick={() => onChangeView("instructor")}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                view === "instructor"
-                  ? "bg-[var(--color-panel)] text-[var(--color-ink)] shadow-sm"
-                  : "text-[var(--color-muted)] hover:text-[var(--color-ink)]"
-              }`}
-            >
-              Instructor
-            </button>
-            <button
-              onClick={() => onChangeView("student")}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-                view === "student"
-                  ? "bg-[var(--color-panel)] text-[var(--color-ink)] shadow-sm"
-                  : "text-[var(--color-muted)] hover:text-[var(--color-ink)]"
-              }`}
-            >
-              Student
-            </button>
-          </nav>
+          {user && (
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-sm font-medium">{user.name}</p>
+                <p className="text-xs capitalize text-[var(--color-muted)]">
+                  {user.role}
+                </p>
+              </div>
+              <button
+                onClick={logout}
+                className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-sm text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+              >
+                Sign out
+              </button>
+            </div>
+          )}
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>

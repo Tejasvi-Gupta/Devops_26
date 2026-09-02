@@ -48,25 +48,22 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/student_env_platform
+          JWT_SECRET: ci-test-secret-must-be-at-least-32-bytes
         run: alembic upgrade head
 
       - name: Import check (catches broken imports/syntax early)
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/student_env_platform
+          JWT_SECRET: ci-test-secret-must-be-at-least-32-bytes
         run: python -c "from app.main import app; print(f'{len(app.routes)} routes registered')"
 
       - name: Run tests
         working-directory: backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/student_env_platform
-        run: |
-          if [ -d tests ]; then
-            pip install pytest
-            pytest
-          else
-            echo "No tests/ directory yet -- skipping. Add backend/tests/ to enable this step."
-          fi
+          JWT_SECRET: ci-test-secret-must-be-at-least-32-bytes
+        run: pytest
 
   frontend:
     name: Frontend (build)

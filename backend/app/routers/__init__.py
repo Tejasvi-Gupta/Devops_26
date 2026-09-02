@@ -5,6 +5,7 @@ from app.routers import (
     enrollments,
     check_runs,
     status,
+    auth,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "enrollments",
     "check_runs",
     "status",
+    "auth",
 ]

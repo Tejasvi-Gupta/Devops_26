@@ -24,23 +24,23 @@ pip install -r requirements.txt
 
 ## Usage
 
-You need a **student_id** and an **environment_definition_id** — both are
-UUIDs returned when you create those records via the backend (`/docs`).
+You need an **environment definition UUID** and a **student login**
+(email + password, or a JWT from `POST /auth/login`).
 
 **Dry run** (detect + print only, no prompts, nothing sent to the backend —
 good for testing):
 ```
-python agent.py check --student-id <uuid> --env-id <uuid> --dry-run
+python agent.py check --env-id <uuid> --email <email> --password <password> --dry-run
 ```
 
 **Real run** (prompts for missing/outdated tools, submits results):
 ```
-python agent.py check --student-id <uuid> --env-id <uuid>
+python agent.py check --env-id <uuid> --email <email> --password <password>
 ```
 
 By default the agent talks to `http://127.0.0.1:8000`. Override with:
 ```
-python agent.py check --student-id <uuid> --env-id <uuid> --backend-url http://your-backend:8000
+python agent.py check --env-id <uuid> --email <email> --password <password> --backend-url http://your-backend:8000
 ```
 
 ## v1 scope (by design)

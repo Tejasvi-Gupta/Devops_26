@@ -5,8 +5,12 @@ Reads connection info from environment variables so this works the same
 locally, in Docker Compose, and later in Kubernetes — nothing hardcoded.
 """
 import os
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
+
+load_dotenv()
 
 # Example: postgresql://user:password@localhost:5432/student_env_platform
 DATABASE_URL = os.getenv(

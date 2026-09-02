@@ -1,24 +1,38 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
 import StatusBadge from "../components/StatusBadge";
 import { formatIST } from "../utils/formatDate";
 
 const EMPTY_REQUIREMENT = { tool_name: "", min_version: "" };
-// Matches the backend's validator: plain dotted-numeric versions only.
 const VERSION_PATTERN = /^\d+(\.\d+)*$/;
 
+const RISK_STYLES = {
+  high: "bg-[var(--color-missing-bg)] text-[var(--color-missing)]",
+  medium: "bg-[var(--color-outdated-bg)] text-[var(--color-outdated)]",
+  low: "bg-[var(--color-satisfied-bg)] text-[var(--color-satisfied)]",
+};
+
+function RiskBadge({ level }) {
+  const style = RISK_STYLES[level] || "bg-gray-100 text-gray-600";
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${style}`}
+    >
+      {level} risk
+    </span>
+  );
+}
+
 export default function InstructorPage() {
-  const [instructors, setInstructors] = useState([]);
+  const { user } = useAuth();
   const [envDefs, setEnvDefs] = useState([]);
   const [selectedEnvId, setSelectedEnvId] = useState(null);
   const [compliance, setCompliance] = useState(null);
+  const [riskReport, setRiskReport] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // New environment form state
-  const [instructorId, setInstructorId] = useState("");
-  const [newInstructorName, setNewInstructorName] = useState("");
-  const [newInstructorEmail, setNewInstructorEmail] = useState("");
   const [envName, setEnvName] = useState("");
   const [requirements, setRequirements] = useState([{ ...EMPTY_REQUIREMENT }]);
   const [submitting, setSubmitting] = useState(false);
@@ -27,13 +41,8 @@ export default function InstructorPage() {
     setLoading(true);
     setError(null);
     try {
-      const [i, e] = await Promise.all([
-        api.listInstructors(),
-        api.listEnvironmentDefinitions(),
-      ]);
-      setInstructors(i);
+      const e = await api.listEnvironmentDefinitions();
       setEnvDefs(e);
-      if (i.length && !instructorId) setInstructorId(i[0].id);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -48,36 +57,22 @@ export default function InstructorPage() {
   useEffect(() => {
     if (!selectedEnvId) {
       setCompliance(null);
+      setRiskReport(null);
       return;
     }
-    api
-      .getComplianceSummary(selectedEnvId)
-      .then(setCompliance)
+    Promise.all([
+      api.getComplianceSummary(selectedEnvId),
+      api.getRiskReport(selectedEnvId),
+    ])
+      .then(([c, r]) => {
+        setCompliance(c);
+        setRiskReport(r);
+      })
       .catch((err) => setError(err.message));
   }, [selectedEnvId]);
 
-  async function handleCreateInstructor(e) {
-    e.preventDefault();
-    setError(null);
-    try {
-      const created = await api.createInstructor({
-        name: newInstructorName,
-        email: newInstructorEmail,
-      });
-      setNewInstructorName("");
-      setNewInstructorEmail("");
-      await loadAll();
-      setInstructorId(created.id);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
   function updateRequirement(idx, field, value) {
     if (field === "min_version") {
-      // Strip common comparison-operator prefixes (>=, <=, ~, ^, =, >, <)
-      // so instructors typing "npm install"-style versions don't end up
-      // with an unparseable min_version -- this was a real issue we hit.
       value = value.replace(/^\s*(>=|<=|~|\^|=|>|<)\s*/, "");
     }
     setRequirements((reqs) =>
@@ -100,9 +95,11 @@ export default function InstructorPage() {
     try {
       const cleanRequirements = requirements
         .filter((r) => r.tool_name.trim() && r.min_version.trim())
-        .map((r) => ({ tool_name: r.tool_name.trim(), min_version: r.min_version.trim() }));
+        .map((r) => ({
+          tool_name: r.tool_name.trim(),
+          min_version: r.min_version.trim(),
+        }));
 
-      if (!instructorId) throw new Error("Select or create an instructor first");
       if (!envName.trim()) throw new Error("Environment name is required");
       const badVersion = cleanRequirements.find(
         (r) => !VERSION_PATTERN.test(r.min_version)
@@ -114,19 +111,26 @@ export default function InstructorPage() {
       if (cleanRequirements.length === 0)
         throw new Error("Add at least one requirement");
 
-      await api.createEnvironmentDefinition({
+      const created = await api.createEnvironmentDefinition({
         name: envName.trim(),
-        created_by_id: instructorId,
         requirements: cleanRequirements,
       });
 
       setEnvName("");
       setRequirements([{ ...EMPTY_REQUIREMENT }]);
       await loadAll();
+      setSelectedEnvId(created.id);
     } catch (err) {
       setError(err.message);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  const riskByStudent = {};
+  if (riskReport) {
+    for (const row of riskReport.students) {
+      riskByStudent[row.student_id] = row;
     }
   }
 
@@ -138,73 +142,13 @@ export default function InstructorPage() {
         </div>
       )}
 
-      {/* Instructor setup */}
-      <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
-        <h2 className="text-sm font-semibold text-[var(--color-ink)]">
-          Instructor
-        </h2>
-        <p className="mt-1 text-xs text-[var(--color-muted)]">
-          Select an existing instructor, or create a new one.
-        </p>
-
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs font-medium text-[var(--color-muted)]">
-            Existing instructor
-            <select
-              value={instructorId}
-              onChange={(e) => setInstructorId(e.target.value)}
-              className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-ink)]"
-            >
-              <option value="">-- none selected --</option>
-              {instructors.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.name} ({i.email})
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <form
-          onSubmit={handleCreateInstructor}
-          className="mt-4 flex flex-wrap items-end gap-3 border-t border-[var(--color-border)] pt-4"
-        >
-          <label className="flex flex-col gap-1 text-xs font-medium text-[var(--color-muted)]">
-            New instructor name
-            <input
-              value={newInstructorName}
-              onChange={(e) => setNewInstructorName(e.target.value)}
-              placeholder="Dr. Smith"
-              className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs font-medium text-[var(--color-muted)]">
-            Email
-            <input
-              value={newInstructorEmail}
-              onChange={(e) => setNewInstructorEmail(e.target.value)}
-              placeholder="smith@university.edu"
-              type="email"
-              className="rounded-md border border-[var(--color-border)] px-3 py-2 text-sm"
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={!newInstructorName || !newInstructorEmail}
-            className="rounded-md bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--color-accent-hover)] disabled:opacity-40"
-          >
-            Create instructor
-          </button>
-        </form>
-      </section>
-
-      {/* Create environment definition */}
       <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
         <h2 className="text-sm font-semibold text-[var(--color-ink)]">
           New environment definition
         </h2>
         <p className="mt-1 text-xs text-[var(--color-muted)]">
-          Define the tools and minimum versions students in this course need.
+          Signed in as {user.name}. Define the tools and minimum versions
+          students in this course need.
         </p>
 
         <form onSubmit={handleCreateEnvironment} className="mt-4 space-y-4">
@@ -290,7 +234,6 @@ export default function InstructorPage() {
         </form>
       </section>
 
-      {/* Environment list + compliance */}
       <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-panel)] p-6">
         <h2 className="text-sm font-semibold text-[var(--color-ink)]">
           Environment definitions
@@ -343,12 +286,14 @@ export default function InstructorPage() {
                     <tr>
                       <th className="px-4 py-2 font-medium">Student</th>
                       <th className="px-4 py-2 font-medium">Requirements</th>
+                      <th className="px-4 py-2 font-medium">Setup risk</th>
                       <th className="px-4 py-2 font-medium">Last checked</th>
                     </tr>
                   </thead>
                   <tbody>
                     {compliance.students.map((s) => {
                       const env = s.environments[0];
+                      const risk = riskByStudent[s.student_id];
                       return (
                         <tr
                           key={s.student_id}
@@ -369,6 +314,17 @@ export default function InstructorPage() {
                                 </span>
                               ))}
                             </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            {risk ? (
+                              <span title={risk.reasons.join("; ")}>
+                                <RiskBadge level={risk.risk_level} />
+                              </span>
+                            ) : (
+                              <span className="text-xs text-[var(--color-muted)]">
+                                —
+                              </span>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-[var(--color-muted)]">
                             {env.last_checked_at

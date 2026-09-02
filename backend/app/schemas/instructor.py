@@ -8,12 +8,13 @@ Naming convention used throughout app/schemas/:
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
 
 
 class InstructorCreate(BaseModel):
     name: str
     email: EmailStr
+    password: str = Field(min_length=8)
 
 
 class InstructorOut(BaseModel):

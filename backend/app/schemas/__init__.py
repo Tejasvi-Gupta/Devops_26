@@ -18,6 +18,14 @@ from app.schemas.status import (
     StudentEnvironmentStatus,
     RequirementStatus,
     ComplianceSummary,
+    StudentRisk,
+    RiskReport,
+)
+from app.schemas.auth import (
+    RegisterRequest,
+    LoginRequest,
+    AuthUserOut,
+    TokenOut,
 )
 
 __all__ = [
@@ -30,4 +38,6 @@ __all__ = [
     "CheckResultCreate", "CheckResultOut",
     "StudentStatusOut", "StudentEnvironmentStatus",
     "RequirementStatus", "ComplianceSummary",
+    "StudentRisk", "RiskReport",
+    "RegisterRequest", "LoginRequest", "AuthUserOut", "TokenOut",
 ]

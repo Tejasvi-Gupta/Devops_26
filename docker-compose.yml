@@ -22,6 +22,8 @@ services:
       # postgres service above -- not "localhost", since this runs in a
       # separate container.
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/student_env_platform
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-use-a-32byte-plus-secret}
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
     ports:
       - "8000:8000"
     depends_on:

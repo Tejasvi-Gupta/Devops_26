@@ -1,8 +1,8 @@
 """
 Instructor: owns Environment Definitions.
 
-v1 keeps this deliberately thin — no auth/password fields yet. Those get
-added later without touching the relationships defined here.
+password_hash is stored as a bcrypt hash; the plaintext password never
+leaves the auth layer.
 """
 import uuid
 from datetime import datetime, timezone
@@ -22,6 +22,7 @@ class Instructor(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

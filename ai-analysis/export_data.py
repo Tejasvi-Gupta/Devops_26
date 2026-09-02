@@ -4,7 +4,8 @@ single CSV: one row per (student, requirement, check_run). This is the
 input the rest of the AI layer works from.
 
 Usage:
-    python export_data.py --backend-url http://127.0.0.1:8000 --out data.csv
+    python export_data.py --backend-url http://127.0.0.1:8000 --out data.csv \\
+        --email prof@university.edu --password <password>
 """
 import argparse
 import csv
@@ -13,23 +14,39 @@ import sys
 import requests
 
 
-def export_data(backend_url: str, out_path: str) -> int:
-    students = requests.get(f"{backend_url}/students").json()
-    env_defs = requests.get(f"{backend_url}/environment-definitions").json()
+def _login(backend_url: str, email: str, password: str) -> dict:
+    resp = requests.post(
+        f"{backend_url}/auth/login",
+        json={"email": email, "password": password, "role": "instructor"},
+        timeout=10,
+    )
+    resp.raise_for_status()
+    token = resp.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+def export_data(backend_url: str, out_path: str, email: str, password: str) -> int:
+    headers = _login(backend_url, email, password)
+
+    students = requests.get(f"{backend_url}/students", headers=headers, timeout=15).json()
+    env_defs = requests.get(
+        f"{backend_url}/environment-definitions", headers=headers, timeout=15
+    ).json()
     env_defs_by_id = {e["id"]: e for e in env_defs}
 
     rows = []
     for student in students:
         check_runs = requests.get(
-            f"{backend_url}/check-runs", params={"student_id": student["id"]}
+            f"{backend_url}/check-runs",
+            params={"student_id": student["id"]},
+            headers=headers,
+            timeout=15,
         ).json()
 
         for run in check_runs:
             env_def = env_defs_by_id.get(run["environment_definition_id"])
             env_name = env_def["name"] if env_def else "unknown"
 
-            # Map requirement_id -> requirement details for this environment,
-            # so we can attach tool_name/min_version to each result row.
             req_by_id = {}
             if env_def:
                 req_by_id = {r["id"]: r for r in env_def["requirements"]}
@@ -67,8 +84,10 @@ def main():
     parser = argparse.ArgumentParser(description="Export check-run data for analysis")
     parser.add_argument("--backend-url", default="http://127.0.0.1:8000")
     parser.add_argument("--out", default="data.csv")
+    parser.add_argument("--email", required=True, help="Instructor account email")
+    parser.add_argument("--password", required=True, help="Instructor account password")
     args = parser.parse_args()
-    sys.exit(export_data(args.backend_url, args.out))
+    sys.exit(export_data(args.backend_url, args.out, args.email, args.password))
 
 
 if __name__ == "__main__":

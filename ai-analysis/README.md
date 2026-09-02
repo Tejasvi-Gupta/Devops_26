@@ -36,7 +36,7 @@ the Student Agent at least a few times across a few students/environments
 
 **2. Export the data:**
 ```
-python export_data.py --backend-url http://127.0.0.1:8000 --out data.csv
+python export_data.py --backend-url http://127.0.0.1:8000 --out data.csv --email prof@university.edu --password <password>
 ```
 
 **3. Run descriptive analytics:**
@@ -88,10 +88,11 @@ check-run.
 
 ## Extending this later
 
-- **Turn into an API endpoint**: wrap `export_data` + `predict_risk`'s
-  logic into a `GET /environment-definitions/{id}/risk-report` route on
-  the backend, so the frontend can show risk scores in the instructor
-  dashboard instead of requiring a manual script run.
+- **Risk report API**: instructors can call
+  `GET /environment-definitions/{id}/risk-report` (JWT required). The
+  instructor dashboard shows a setup-risk badge per enrolled student.
+  The offline `predict_risk.py` script remains available for richer
+  logistic-regression scoring when there is enough historical data.
 - **Richer features**: time between check-runs, which specific tools
   each student struggles with, whether they've used `--dry-run` a lot
   (hesitation signal), enrollment-to-first-check-run latency.

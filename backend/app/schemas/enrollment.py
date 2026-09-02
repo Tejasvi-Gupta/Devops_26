@@ -5,7 +5,6 @@ from pydantic import BaseModel, ConfigDict
 
 
 class EnrollmentCreate(BaseModel):
-    student_id: uuid.UUID
     environment_definition_id: uuid.UUID
 
 

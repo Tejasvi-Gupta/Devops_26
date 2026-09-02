@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.auth import hash_password, require_instructor, CurrentUser
 from app.database import get_db
 from app.models import Instructor
 from app.schemas import InstructorCreate, InstructorOut
@@ -13,7 +14,11 @@ router = APIRouter(prefix="/instructors", tags=["instructors"])
 
 @router.post("", response_model=InstructorOut, status_code=201)
 def create_instructor(payload: InstructorCreate, db: Session = Depends(get_db)):
-    instructor = Instructor(name=payload.name, email=payload.email)
+    instructor = Instructor(
+        name=payload.name,
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+    )
     db.add(instructor)
     try:
         db.commit()
@@ -25,12 +30,19 @@ def create_instructor(payload: InstructorCreate, db: Session = Depends(get_db)):
 
 
 @router.get("", response_model=list[InstructorOut])
-def list_instructors(db: Session = Depends(get_db)):
+def list_instructors(
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(require_instructor),
+):
     return db.query(Instructor).order_by(Instructor.created_at).all()
 
 
 @router.get("/{instructor_id}", response_model=InstructorOut)
-def get_instructor(instructor_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_instructor(
+    instructor_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_instructor),
+):
     instructor = db.get(Instructor, instructor_id)
     if not instructor:
         raise HTTPException(status_code=404, detail="Instructor not found")

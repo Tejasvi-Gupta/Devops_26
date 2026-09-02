@@ -4,12 +4,33 @@
  * http://127.0.0.1:8000 and strips the /api prefix.
  */
 const BASE = "/api";
+const AUTH_LOST = "sep-auth-lost";
+
+let authToken = localStorage.getItem("sep_token");
+
+export function setAuthToken(token) {
+  authToken = token || null;
+}
 
 async function request(path, options = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers,
   });
+  if (res.status === 401) {
+    localStorage.removeItem("sep_token");
+    localStorage.removeItem("sep_user");
+    authToken = null;
+    window.dispatchEvent(new Event(AUTH_LOST));
+  }
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -25,17 +46,15 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  // Instructors
-  createInstructor: (data) =>
-    request("/instructors", { method: "POST", body: JSON.stringify(data) }),
-  listInstructors: () => request("/instructors"),
+  register: (data) =>
+    request("/auth/register", { method: "POST", body: JSON.stringify(data) }),
+  login: (data) =>
+    request("/auth/login", { method: "POST", body: JSON.stringify(data) }),
+  me: () => request("/auth/me"),
 
-  // Students
-  createStudent: (data) =>
-    request("/students", { method: "POST", body: JSON.stringify(data) }),
+  listInstructors: () => request("/instructors"),
   listStudents: () => request("/students"),
 
-  // Environment definitions
   createEnvironmentDefinition: (data) =>
     request("/environment-definitions", {
       method: "POST",
@@ -44,13 +63,13 @@ export const api = {
   listEnvironmentDefinitions: () => request("/environment-definitions"),
   getEnvironmentDefinition: (id) => request(`/environment-definitions/${id}`),
 
-  // Enrollments
   createEnrollment: (data) =>
     request("/enrollments", { method: "POST", body: JSON.stringify(data) }),
   listEnrollments: () => request("/enrollments"),
 
-  // Status / compliance (read models)
   getStudentStatus: (studentId) => request(`/students/${studentId}/status`),
   getComplianceSummary: (envDefId) =>
     request(`/environment-definitions/${envDefId}/compliance`),
+  getRiskReport: (envDefId) =>
+    request(`/environment-definitions/${envDefId}/risk-report`),
 };

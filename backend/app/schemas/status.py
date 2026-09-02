@@ -42,3 +42,20 @@ class ComplianceSummary(BaseModel):
     total_enrolled: int
     fully_compliant: int
     students: list[StudentStatusOut] = []
+
+
+class StudentRisk(BaseModel):
+    student_id: uuid.UUID
+    student_name: str
+    risk_score: float
+    risk_level: str
+    unresolved_fraction: float | None = None
+    last_checked_at: datetime | None = None
+    reasons: list[str] = []
+
+
+class RiskReport(BaseModel):
+    """Instructor-facing per-student setup risk for one environment definition."""
+    environment_definition_id: uuid.UUID
+    environment_definition_name: str
+    students: list[StudentRisk] = []

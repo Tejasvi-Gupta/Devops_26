@@ -6,10 +6,13 @@ Run locally with:
 
 Then open http://127.0.0.1:8000/docs for interactive API docs.
 """
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import (
+    auth,
     instructors,
     students,
     environment_definitions,
@@ -21,19 +24,23 @@ from app.routers import (
 app = FastAPI(
     title="Student Development Environment Provisioning Platform",
     description="API for defining, provisioning, and tracking student dev environments.",
-    version="0.1.0",
+    version="0.2.0",
 )
 
-# Permissive CORS for local development so the Vite frontend (different
-# port) can call this API. Tighten this to specific origins before any
-# real deployment.
+_origins = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://127.0.0.1:5173",
+)
+allow_origins = [o.strip() for o in _origins.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allow_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(instructors.router)
 app.include_router(students.router)
 app.include_router(environment_definitions.router)

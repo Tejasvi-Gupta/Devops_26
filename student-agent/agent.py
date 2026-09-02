@@ -2,7 +2,8 @@
 Student Agent CLI.
 
 Usage:
-    python agent.py check --student-id <uuid> --env-id <uuid> [--backend-url URL] [--dry-run]
+    python agent.py check --env-id <uuid> --email <email> --password <password> [--backend-url URL] [--dry-run]
+    python agent.py check --env-id <uuid> --token <jwt> [--backend-url URL] [--dry-run]
 
 What it does:
     1. Fetches the Environment Definition (and its Requirements) from the backend.
@@ -35,8 +36,27 @@ INSTALL_HINTS = {
 }
 
 
-def run_check(student_id: str, env_id: str, backend_url: str, dry_run: bool) -> int:
-    client = BackendClient(backend_url)
+def run_check(
+    env_id: str,
+    backend_url: str,
+    dry_run: bool,
+    email: str | None,
+    password: str | None,
+    token: str | None,
+) -> int:
+    client = BackendClient(backend_url, token=token)
+    if not client.token:
+        if not email or not password:
+            print(
+                "ERROR: provide --token or both --email and --password",
+                file=sys.stderr,
+            )
+            return 1
+        try:
+            client.login(email, password)
+        except Exception as e:
+            print(f"ERROR: could not log in: {e}", file=sys.stderr)
+            return 1
 
     print(f"Fetching environment definition {env_id} ...")
     try:
@@ -96,7 +116,6 @@ def run_check(student_id: str, env_id: str, backend_url: str, dry_run: bool) -> 
     print("Submitting results to backend ...")
     try:
         check_run = client.submit_check_run(
-            student_id=student_id,
             environment_definition_id=env_id,
             status="completed",
             results=results,
@@ -149,8 +168,10 @@ def main():
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     check_parser = subparsers.add_parser("check", help="Run a check against an environment definition")
-    check_parser.add_argument("--student-id", required=True, help="Your student UUID")
     check_parser.add_argument("--env-id", required=True, help="Environment definition UUID")
+    check_parser.add_argument("--email", help="Student account email")
+    check_parser.add_argument("--password", help="Student account password")
+    check_parser.add_argument("--token", help="JWT from POST /auth/login (alternative to email/password)")
     check_parser.add_argument(
         "--backend-url", default="http://127.0.0.1:8000",
         help="Backend base URL (default: http://127.0.0.1:8000)",
@@ -163,7 +184,14 @@ def main():
     args = parser.parse_args()
 
     if args.command == "check":
-        exit_code = run_check(args.student_id, args.env_id, args.backend_url, args.dry_run)
+        exit_code = run_check(
+            args.env_id,
+            args.backend_url,
+            args.dry_run,
+            args.email,
+            args.password,
+            args.token,
+        )
         sys.exit(exit_code)
 
 

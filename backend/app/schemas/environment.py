@@ -38,7 +38,6 @@ class RequirementOut(BaseModel):
 
 class EnvironmentDefinitionCreate(BaseModel):
     name: str
-    created_by_id: uuid.UUID
     requirements: list[RequirementCreate] = []
 
 

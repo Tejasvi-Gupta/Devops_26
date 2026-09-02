@@ -3,8 +3,9 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, selectinload
 
+from app.auth import require_instructor, get_current_user, CurrentUser
 from app.database import get_db
-from app.models import EnvironmentDefinition, Requirement, Instructor
+from app.models import EnvironmentDefinition, Requirement
 from app.schemas import EnvironmentDefinitionCreate, EnvironmentDefinitionOut
 
 router = APIRouter(prefix="/environment-definitions", tags=["environment-definitions"])
@@ -12,14 +13,12 @@ router = APIRouter(prefix="/environment-definitions", tags=["environment-definit
 
 @router.post("", response_model=EnvironmentDefinitionOut, status_code=201)
 def create_environment_definition(
-    payload: EnvironmentDefinitionCreate, db: Session = Depends(get_db)
+    payload: EnvironmentDefinitionCreate,
+    db: Session = Depends(get_db),
+    user: CurrentUser = Depends(require_instructor),
 ):
-    instructor = db.get(Instructor, payload.created_by_id)
-    if not instructor:
-        raise HTTPException(status_code=404, detail="Instructor not found")
-
     env_def = EnvironmentDefinition(
-        name=payload.name, created_by_id=payload.created_by_id
+        name=payload.name, created_by_id=user.id
     )
     db.add(env_def)
     db.flush()  # get env_def.id without committing yet
@@ -35,12 +34,20 @@ def create_environment_definition(
         )
 
     db.commit()
-    db.refresh(env_def)
+    env_def = (
+        db.query(EnvironmentDefinition)
+        .options(selectinload(EnvironmentDefinition.requirements))
+        .filter(EnvironmentDefinition.id == env_def.id)
+        .first()
+    )
     return env_def
 
 
 @router.get("", response_model=list[EnvironmentDefinitionOut])
-def list_environment_definitions(db: Session = Depends(get_db)):
+def list_environment_definitions(
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(get_current_user),
+):
     return (
         db.query(EnvironmentDefinition)
         .options(selectinload(EnvironmentDefinition.requirements))
@@ -50,7 +57,11 @@ def list_environment_definitions(db: Session = Depends(get_db)):
 
 
 @router.get("/{env_def_id}", response_model=EnvironmentDefinitionOut)
-def get_environment_definition(env_def_id: uuid.UUID, db: Session = Depends(get_db)):
+def get_environment_definition(
+    env_def_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _user: CurrentUser = Depends(get_current_user),
+):
     env_def = (
         db.query(EnvironmentDefinition)
         .options(selectinload(EnvironmentDefinition.requirements))

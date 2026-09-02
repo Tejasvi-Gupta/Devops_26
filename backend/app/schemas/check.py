@@ -34,7 +34,6 @@ class CheckRunCreate(BaseModel):
     Example payload:
 
     {
-      "student_id": "...",
       "environment_definition_id": "...",
       "status": "completed",
       "results": [
@@ -46,8 +45,11 @@ class CheckRunCreate(BaseModel):
         }
       ]
     }
+
+    student_id, if sent, must match the authenticated student. The
+    backend always records the token's user id, never a spoofed UUID.
     """
-    student_id: uuid.UUID
+    student_id: uuid.UUID | None = None
     environment_definition_id: uuid.UUID
     status: CheckRunStatus = CheckRunStatus.COMPLETED
     results: list[CheckResultCreate] = []
