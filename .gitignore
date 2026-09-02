@@ -26,3 +26,9 @@ frontend/dist/
 # AI analysis exports (regenerable, may contain student data)
 ai-analysis/data.csv
 ai-analysis/*.csv
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/terraform.tfstate
+infra/terraform/terraform.tfstate.backup
+infra/terraform/terraform.tfvars
