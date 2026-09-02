@@ -81,7 +81,7 @@ you can try every endpoint directly from the browser.
 
 ### A note on `requirements.txt` versions
 
-`fastapi` and `starlette` are pinned to `0.135.0` / `1.2.1`. This isn't
+`fastapi` and `starlette` are pinned to `0.135.0` / `1.3.1`. This isn't
 arbitrary:
 
 - The original pin (`0.115.6` / `0.41.3`) was chosen because letting pip
@@ -93,19 +93,24 @@ arbitrary:
   all fixed in Starlette 1.0+.
 - Jumping straight to the latest `fastapi` (`0.141.1` at the time) to get
   Starlette 1.x reproduced the *exact same* silent route-registration bug
-  as before (with `starlette==1.6.0`) — this is a real, reproducible
+  as before (with `starlette==1.6.0`) — a real, reproducible
   incompatibility between that specific pairing, not a fluke.
-- `fastapi==0.135.0` / `starlette==1.2.1` was found by testing several
-  versions between the two known-bad points, and is confirmed working:
-  correct route count, and a full instructor → environment → student →
-  enrollment → check-run → status/compliance flow all verified via real
-  HTTP calls against Postgres. It's also past Starlette's 1.0 boundary,
-  so the CVEs Snyk flagged no longer apply.
+- `fastapi==0.135.0` / `starlette==1.2.1` was the first confirmed-working
+  fix (found by testing versions between the two known-bad points),
+  cutting Snyk's findings from 4 to 2 -- but Snyk still flagged 2 remaining
+  CVEs in `starlette@1.2.1` (resource allocation limits, name resolution),
+  fixed in `1.3.1`.
+- `starlette==1.3.1` was then re-tested against `fastapi==0.135.0`
+  specifically (not assumed compatible just because 1.2.1 was) — confirmed
+  working: correct route count (21), and the full instructor → environment
+  → student → enrollment → check-run → status/compliance flow verified via
+  real HTTP calls against Postgres, zero server errors. This resolved all
+  4 originally-flagged CVEs.
 
 **If you ever bump these versions again**, don't just trust that it
 installs — re-run the check below (route count) and the end-to-end smoke
 test further down before trusting the result. This specific dependency
-pairing has broken silently twice already.
+pairing has broken silently multiple times already.
 
 ```
 python -c "from app.main import app; print(f'{len(app.routes)} routes registered')"
