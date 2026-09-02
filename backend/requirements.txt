@@ -7,3 +7,4 @@ alembic
 pydantic[email]
 python-dotenv
 bcrypt
+PyJWT
